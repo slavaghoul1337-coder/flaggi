@@ -6,7 +6,7 @@ app.use(express.json());
 
 // --- Конфигурация ---
 const RPC_URL = process.env.RPC_URL || "https://rpc.ankr.com/base/4d93f615e8a7a794300afd50f0093768551d8bcb3cadce7dccbe986e55cbdf09";
-const PAY_TO = process.env.PAY_TO || "0x390d45A9375b9C81c3044314EDE0c9C8E5229DD9";
+const PAY_TO = process.env.PAY_TO || "0x25C741BFEF028D49cE37595f466a8f3E80F474ca";
 const USDC_CONTRACT = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC token на Base
 const MIN_USDC_AMOUNT = 2_000_000n; // 2 USDC, 6 decimals
 
@@ -28,7 +28,7 @@ app.get("/verifyOwnership", (req, res) => {
         scheme: "exact",
         network: "base",
         maxAmountRequired: "2",
-        resource: "https://genge.vercel.app/verifyOwnership",
+        resource: "https://flaki.vercel.app/verifyOwnership",
         description: "Verify USDC payment transaction",
         mimeType: "application/json",
         payTo: PAY_TO,
@@ -84,5 +84,5 @@ app.post("/verifyOwnership", async (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`GENGE API running on port ${port}`));
+app.listen(port, () => console.log(`FLAKI API running on port ${port}`));
 export default app;
