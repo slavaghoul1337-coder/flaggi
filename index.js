@@ -28,7 +28,7 @@ app.get("/verifyOwnership", (req, res) => {
         scheme: "exact",
         network: "base",
         maxAmountRequired: "2",
-        resource: "https://flaggi.vercel.app/verifyOwnership",
+        resource: "https://flaggi.vercel.app/api/mint",
         description: "Verify USDC payment transaction",
         mimeType: "application/json",
         payTo: PAY_TO,
@@ -40,7 +40,7 @@ app.get("/verifyOwnership", (req, res) => {
 });
 
 // --- POST проверка транзакции ---
-app.post("/verifyOwnership", async (req, res) => {
+app.post("/api/mint", async (req, res) => {
   try {
     const { wallet, txHash } = req.body;
     if (!wallet || !txHash) return res.status(400).json({ error: "Missing wallet or txHash" });
