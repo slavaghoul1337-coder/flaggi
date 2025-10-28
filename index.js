@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // --- Конфигурация ---
 const RPC_URL =
@@ -24,46 +25,68 @@ const provider = new ethers.JsonRpcProvider(RPC_URL);
 const usdcContract = new ethers.Contract(USDC_CONTRACT, ERC20_ABI, provider);
 
 // --- GET ресурс для X402 ---
+app.options("/mint", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  return res.sendStatus(204);
+});
+
+// Строго типизированный x402 response
 app.get("/mint", (req, res) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Access-Control-Allow-Origin", "*"); // на случай, если x402 делает preflight
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  // 3 USDC -> 3 * 10^6 = 3000000 (USDC has 6 decimals)
+  const maxAtomic = "3000000";
 
   res.status(402).json({
     x402Version: 1,
     payer: PAY_TO,
     accepts: [
       {
-        resource: "https://flaggi1.vercel.app/mint",
         scheme: "exact",
         network: "base",
-        maxAmountRequired: 3,                // <-- число, не строка
+        // string in atomic units
+        maxAmountRequired: maxAtomic,
+        resource: "https://flaggi1.vercel.app/mint",
         description: "Mint 1 FLAGGI NFT for $3.00",
         mimeType: "application/json",
         payTo: PAY_TO,
-        asset: "USDC",
+        // USDC contract address on Base (use your constant)
+        asset: USDC_CONTRACT,
         maxTimeoutSeconds: 10,
-        // УПРОЩЕННАЯ схема входа/выхода — чтобы минимум валидаторов принял
+        // строго-типизированная схема для входа/выхода
         outputSchema: {
           input: {
             type: "http",
             method: "POST",
             bodyType: "json",
-            // required поля указаны как список на уровне input
-            required: ["wallet", "txHash"],
+            // bodyFields описывают поля POST тела; required указываем булевым флагом
             bodyFields: {
-              wallet: { type: "string", description: "Wallet address" },
-              txHash: { type: "string", description: "Transaction hash" }
+              wallet: {
+                type: "string",
+                required: true,
+                description: "Wallet address (EOA) paying for mint"
+              },
+              txHash: {
+                type: "string",
+                required: true,
+                description: "Transaction hash of the USDC transfer"
+              }
             }
           },
+          // output — перечисляем именно те поля, которые POST вернёт обратно
           output: {
-            success: { type: "boolean" },
-            message: { type: "string" }
+            success: "boolean",
+            message: "string"
           }
         },
-        extra: { provider: "FLAGGI", category: "Minting" }
+        extra: {
+          provider: "FLAGGI",
+          category: "Minting"
+        }
       }
     ]
   });
@@ -73,12 +96,20 @@ app.get("/mint", (req, res) => {
 app.post("/mint", async (req, res) => {
   try {
     const { wallet, txHash } = req.body;
-    if (!wallet || !txHash)
-      return res.status(400).json({ error: "Missing wallet or txHash" });
+    if (!wallet || !txHash) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing wallet or txHash"
+      });
+    }
 
     const txReceipt = await provider.getTransactionReceipt(txHash);
-    if (!txReceipt)
-      return res.status(400).json({ error: "Transaction not found" });
+    if (!txReceipt) {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction not found or pending"
+      });
+    }
 
     let valid = false;
     for (const log of txReceipt.logs) {
@@ -88,31 +119,39 @@ app.post("/mint", async (req, res) => {
           if (
             parsed.name === "Transfer" &&
             parsed.args.from.toLowerCase() === wallet.toLowerCase() &&
-            parsed.args.to.toLowerCase() === PAY_TO.toLowerCase() &&
-            parsed.args.value >= MIN_USDC_AMOUNT
+            parsed.args.to.toLowerCase() === PAY_TO.toLowerCase()
           ) {
-            valid = true;
-            break;
+            // parsed.args.value может быть BigNumber/BigInt-like
+            const value = BigInt(parsed.args.value.toString ? parsed.args.value.toString() : parsed.args.value);
+            if (value >= MIN_USDC_AMOUNT) {
+              valid = true;
+              break;
+            }
           }
-        } catch {}
+        } catch (e) {
+          // игнорируем логи, которые не парсятся
+        }
       }
     }
 
-    if (!valid)
+    if (!valid) {
       return res.status(400).json({
         success: false,
-        message: "❌ Payment not verified. Wrong address or amount too low."
+        message: "Payment not verified: wrong recipient or insufficient amount"
       });
+    }
 
+    // Успешный ответ — строго соответствуем outputSchema.output
     return res.status(200).json({
       success: true,
-      wallet,
-      txHash,
-      message: "✅ FLAGGI NFT minted successfully!"
+      message: "FLAGGI NFT minted successfully"
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
   }
 });
 
