@@ -25,6 +25,12 @@ const usdcContract = new ethers.Contract(USDC_CONTRACT, ERC20_ABI, provider);
 
 // --- GET ресурс для X402 ---
 app.get("/mint", (req, res) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Access-Control-Allow-Origin", "*"); // на случай, если x402 делает preflight
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
   res.status(402).json({
     x402Version: 1,
     payer: PAY_TO,
@@ -33,20 +39,23 @@ app.get("/mint", (req, res) => {
         resource: "https://flaggi1.vercel.app/mint",
         scheme: "exact",
         network: "base",
-        maxAmountRequired: "3.00",
+        maxAmountRequired: 3,                // <-- число, не строка
         description: "Mint 1 FLAGGI NFT for $3.00",
         mimeType: "application/json",
         payTo: PAY_TO,
         asset: "USDC",
         maxTimeoutSeconds: 10,
+        // УПРОЩЕННАЯ схема входа/выхода — чтобы минимум валидаторов принял
         outputSchema: {
           input: {
             type: "http",
             method: "POST",
             bodyType: "json",
+            // required поля указаны как список на уровне input
+            required: ["wallet", "txHash"],
             bodyFields: {
-              wallet: { type: "string", required: ["wallet"], description: "Wallet address" },
-              txHash: { type: "string", required: ["txHash"], description: "Transaction hash" }
+              wallet: { type: "string", description: "Wallet address" },
+              txHash: { type: "string", description: "Transaction hash" }
             }
           },
           output: {
@@ -54,10 +63,7 @@ app.get("/mint", (req, res) => {
             message: { type: "string" }
           }
         },
-        extra: {
-          provider: "FLAGGI",
-          category: "Minting"
-        }
+        extra: { provider: "FLAGGI", category: "Minting" }
       }
     ]
   });
