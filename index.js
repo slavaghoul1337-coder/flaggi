@@ -22,14 +22,14 @@ const ERC20_ABI = [
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const usdcContract = new ethers.Contract(USDC_CONTRACT, ERC20_ABI, provider);
 
-// --- GET ресурс для X402 (оплата NFT) ---
+// --- GET ресурс для X402 ---
 app.get("/mint", (req, res) => {
   res.status(402).json({
     x402Version: 1,
-    payer: "0x0000000000000000000000000000000000000000",
+    payer: PAY_TO,
     accepts: [
       {
-        resource: "https://flaggi.vercel.app/api/mint",
+        resource: "https://flaggi.vercel.app/mint",
         scheme: "exact",
         network: "base",
         maxAmountRequired: "3.00",
@@ -39,7 +39,23 @@ app.get("/mint", (req, res) => {
         asset: "USDC",
         maxTimeoutSeconds: 15,
         outputSchema: {
-          input: { type: "http", method: "POST", bodyType: "json" },
+          input: {
+            type: "http",
+            method: "POST",
+            bodyType: "json",
+            bodyFields: {
+              wallet: {
+                type: "string",
+                required: ["wallet"],
+                description: "Wallet address"
+              },
+              txHash: {
+                type: "string",
+                required: ["txHash"],
+                description: "Transaction hash"
+              }
+            }
+          },
           output: {
             success: { type: "boolean" },
             message: { type: "string" }
@@ -54,7 +70,7 @@ app.get("/mint", (req, res) => {
   });
 });
 
-// --- POST mint ---
+// --- POST /mint для проверки транзакции ---
 app.post("/mint", async (req, res) => {
   try {
     const { wallet, txHash } = req.body;
@@ -65,7 +81,6 @@ app.post("/mint", async (req, res) => {
     if (!txReceipt)
       return res.status(400).json({ error: "Transaction not found" });
 
-    // Проверяем, что это USDC трансфер нужной суммы и адреса
     let valid = false;
     for (const log of txReceipt.logs) {
       if (log.address.toLowerCase() === USDC_CONTRACT.toLowerCase()) {
@@ -90,7 +105,6 @@ app.post("/mint", async (req, res) => {
         message: "❌ Payment not verified. Wrong address or amount too low."
       });
 
-    // Если всё ок — “минтим” NFT (здесь просто ответ)
     return res.status(200).json({
       success: true,
       wallet,
@@ -103,17 +117,17 @@ app.post("/mint", async (req, res) => {
   }
 });
 
-// --- Старый /verifyOwnership (оставляем как есть, ничего не ломаем) ---
+// --- Старый /verifyOwnership оставляем ---
 app.get("/verifyOwnership", (req, res) => {
   res.status(402).json({
     x402Version: 1,
-    payer: "0x0000000000000000000000000000000000000000",
+    payer: PAY_TO,
     accepts: [
       {
         scheme: "exact",
         network: "base",
         maxAmountRequired: "2",
-        resource: "https://flaggi.vercel.app/api/mint",
+        resource: "https://flaggi.vercel.app/mint",
         description: "Verify USDC payment transaction",
         mimeType: "application/json",
         payTo: PAY_TO,
@@ -172,4 +186,5 @@ app.post("/verifyOwnership", async (req, res) => {
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`FLAGGI API running on port ${port}`));
+
 export default app;
