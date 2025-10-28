@@ -36,28 +36,46 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    try {
-      const { wallet, txHash } = req.body || {};
+      try {
+    const { wallet, txHash } = req.body;
+    if (!wallet || !txHash) return res.status(400).json({ error: "Missing wallet or txHash" });
 
-      if (!wallet || !txHash) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Missing wallet or transaction hash" });
+    const txReceipt = await provider.getTransactionReceipt(txHash);
+    if (!txReceipt) return res.status(400).json({ error: "Transaction not found" });
+
+    // Парсим события Transfer на USDC
+    let valid = false;
+    for (const log of txReceipt.logs) {
+      if (log.address.toLowerCase() === USDC_CONTRACT.toLowerCase()) {
+        try {
+          const parsed = usdcContract.interface.parseLog(log);
+          if (
+            parsed.name === "Transfer" &&
+            parsed.args.from.toLowerCase() === wallet.toLowerCase() &&
+            parsed.args.to.toLowerCase() === PAY_TO.toLowerCase() &&
+            parsed.args.value >= MIN_USDC_AMOUNT
+          ) {
+            valid = true;
+            break;
+          }
+        } catch {}
       }
-
-      // Симуляция успешного минта
-      return res.status(200).json({
-        success: true,
-        wallet,
-        minted: 1,
-        txHash,
-        message: "✅ Successfully minted 1 FLAGGI NFT"
-      });
-    } catch (err) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Server error", details: err.message });
     }
+
+    if (!valid) return res.status(400).json({ error: "Transaction sent to wrong address or amount too low" });
+
+    return res.status(200).json({
+      success: true,
+      wallet,
+      txHash,
+      verified: true,
+      message: "✅ Payment verified successfully"
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
   }
 
   return res.status(405).json({ success: false, message: "Method not allowed" });
