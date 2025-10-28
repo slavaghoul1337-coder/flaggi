@@ -28,7 +28,7 @@ app.get("/verifyOwnership", (req, res) => {
         scheme: "exact",
         network: "base",
         maxAmountRequired: "2",
-        resource: "https://flaki.vercel.app/verifyOwnership",
+        resource: "https://flaggi.vercel.app/verifyOwnership",
         description: "Verify USDC payment transaction",
         mimeType: "application/json",
         payTo: PAY_TO,
@@ -84,5 +84,5 @@ app.post("/verifyOwnership", async (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`FLAKI API running on port ${port}`));
+app.listen(port, () => console.log(`FLAGGI API running on port ${port}`));
 export default app;
