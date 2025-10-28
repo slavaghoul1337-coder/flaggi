@@ -30,7 +30,7 @@ app.get("/mint", (req, res) => {
     payer: PAY_TO,
     accepts: [
       {
-        resource: "https://flaggi.vercel.app/verifiyOwnership",
+        resource: "https://flaggi.vercel.app/mint",
         scheme: "exact",
         network: "base",
         maxAmountRequired: "3.00",
