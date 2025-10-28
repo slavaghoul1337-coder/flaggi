@@ -43,19 +43,7 @@ app.get("/mint", (req, res) => {
           input: {
             type: "http",
             method: "POST",
-            bodyType: "json",
-            bodyFields: {
-              wallet: {
-                type: "string",
-                required: ["wallet"],
-                description: "Wallet address"
-              },
-              txHash: {
-                type: "string",
-                required: ["txHash"],
-                description: "Transaction hash"
-              }
-            }
+            bodyType: "json"
           },
           output: {
             success: { type: "boolean" },
