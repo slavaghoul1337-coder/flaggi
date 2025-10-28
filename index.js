@@ -13,7 +13,7 @@ const PAY_TO =
   "0x25C741BFEF028D49cE37595f466a8f3E80F474ca";
 const USDC_CONTRACT = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC token на Base
 const MIN_USDC_AMOUNT = 2_000_000n; // 2 USDC, 6 decimals
-const VERIFY_URL = "https://flaggi.vercel.app/verifyOwnership";
+const VERIFY_URL = "https://flaggi1.vercel.app/verifyOwnership";
 
 // --- ERC20 ABI minimal ---
 const ERC20_ABI = [
@@ -30,7 +30,7 @@ app.get("/mint", (req, res) => {
     payer: PAY_TO,
     accepts: [
       {
-        resource: "https://flaggi.vercel.app/mint",
+        resource: "https://flaggi1.vercel.app/mint",
         scheme: "exact",
         network: "base",
         maxAmountRequired: "3.00",
